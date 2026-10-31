@@ -90,7 +90,7 @@ run    starts the daemon: subscribes to Solar Assistant over MQTT, polls the
 check  connects, waits up to --wait for data, prints one State JSON and exits
        0 for green (go), 1 for amber (maybe), 2 for red (no), 3 on error.
 
-Config: YAML file (see config.example.yaml) overridden by DEADZONE_* env vars.
+Config: YAML file (see deadzone.example.yaml) overridden by DEADZONE_* env vars.
 `)
 }
 

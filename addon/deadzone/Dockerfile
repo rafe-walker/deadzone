@@ -2,9 +2,13 @@
 # The Supervisor builds with addon/deadzone/ as the context, so the source
 # is fetched from GitHub rather than copied. Bump DEADZONE_REF together with
 # config.yaml "version".
-FROM golang:1.24-alpine AS builder
+ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-base:3.20
 ARG DEADZONE_REF=main
 ARG BUILD_ARCH=aarch64
+
+FROM golang:1.24-alpine AS builder
+ARG DEADZONE_REF
+ARG BUILD_ARCH
 RUN apk add --no-cache git ca-certificates
 WORKDIR /src
 RUN git clone --depth 1 --branch "${DEADZONE_REF}" https://github.com/rafe-walker/deadzone.git . \
@@ -14,7 +18,6 @@ RUN case "${BUILD_ARCH}" in aarch64) GOARCH=arm64 ;; amd64) GOARCH=amd64 ;; armv
     go build -trimpath -ldflags="-s -w -X main.version=${DEADZONE_REF}" -o /out/deadzone ./cmd/deadzone
 
 # Stage 2: the HA base image (bashio + s6) with just the binary.
-ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-base:3.20
 FROM ${BUILD_FROM}
 RUN apk add --no-cache jq ca-certificates
 COPY --from=builder /out/deadzone /usr/bin/deadzone

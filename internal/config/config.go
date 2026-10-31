@@ -1,6 +1,6 @@
 // Package config loads the deadzone configuration from a YAML file, applies
 // defaults, then applies DEADZONE_* environment overrides. Every key is
-// documented in config.example.yaml at the repo root.
+// documented in deadzone.example.yaml at the repo root.
 package config
 
 import (
@@ -115,7 +115,7 @@ type Config struct {
 }
 
 // Default returns the built-in defaults. Numbers mirror §6.4 of the scoping
-// doc and config.example.yaml.
+// doc and deadzone.example.yaml.
 func Default() Config {
 	return Config{
 		LogLevel: "info",

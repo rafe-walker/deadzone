@@ -1,6 +1,6 @@
 # systemd unit for a Raspberry Pi / NUC install.
 #   sudo cp deadzone /usr/local/bin/ && sudo cp deploy/deadzone.service /etc/systemd/system/
-#   sudo mkdir -p /etc/deadzone /var/lib/deadzone && sudo cp config.example.yaml /etc/deadzone/deadzone.yaml
+#   sudo mkdir -p /etc/deadzone /var/lib/deadzone && sudo cp deadzone.example.yaml /etc/deadzone/deadzone.yaml
 #   sudo useradd -r -s /usr/sbin/nologin deadzone && sudo chown deadzone /var/lib/deadzone
 #   sudo systemctl enable --now deadzone
 [Unit]

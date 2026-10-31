@@ -18,7 +18,7 @@ hardware-agnostic are the ones most likely to land.
   scrub it and say what it came from. If you construct one by hand, mark it
   `synthetic` in the file.
 - **Formulas are tested.** Changes to `internal/engine` need table-driven
-  tests. If you change a default threshold, update `config.example.yaml`
+  tests. If you change a default threshold, update `deadzone.example.yaml`
   and the README config reference in the same PR.
 - **Degrade gracefully.** New sources must cope with missing fields, stale
   data, and the uplink being down (that is, after all, the point).

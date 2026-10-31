@@ -52,7 +52,7 @@ box; in bypass mode add a static route on your router.
 tar xzf deadzone-v0.1.0-linux-arm64.tar.gz && cd deadzone-v0.1.0-linux-arm64
 sudo install -m 755 deadzone /usr/local/bin/deadzone
 sudo mkdir -p /etc/deadzone /var/lib/deadzone
-sudo cp config.example.yaml /etc/deadzone/deadzone.yaml   # edit mqtt.host, forecast.latitude/longitude, battery.capacity_kwh
+sudo cp deadzone.example.yaml /etc/deadzone/deadzone.yaml   # edit mqtt.host, forecast.latitude/longitude, battery.capacity_kwh
 sudo useradd -r -s /usr/sbin/nologin deadzone; sudo chown deadzone /var/lib/deadzone
 sudo cp deploy/deadzone.service /etc/systemd/system/ && sudo systemctl enable --now deadzone
 curl -s localhost:8099/api/state | jq .verdict
@@ -71,7 +71,7 @@ deadzone version
 ## Configuration
 
 YAML file, every key overridable by a `DEADZONE_*` environment variable.
-[`config.example.yaml`](config.example.yaml) documents all of them. The ones
+[`deadzone.example.yaml`](deadzone.example.yaml) documents all of them. The ones
 you must set or measure:
 
 | Key | Env | What |
