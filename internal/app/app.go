@@ -108,6 +108,10 @@ func (a *App) Evaluate(ctx context.Context) model.State {
 	if err := a.Actor.Shed(ctx, st.Verdict.Shed); err != nil {
 		a.Logger.Warn("actor failed", "err", err)
 	}
+	// encoding/json rejects NaN/Inf and would take the whole publish down.
+	if hits := model.Sanitize(&st); len(hits) > 0 {
+		a.Logger.Warn("non-finite values nulled before publish", "fields", hits)
+	}
 	a.mu.Lock()
 	a.last = st
 	a.mu.Unlock()
