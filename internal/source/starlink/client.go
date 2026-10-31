@@ -92,31 +92,38 @@ func (r *ReflectCaller) ensure(ctx context.Context) error {
 	r.refl.AllowMissingFileDescriptors()
 	r.refl.AllowFallbackResolver(protoregistry.GlobalFiles, protoregistry.GlobalTypes)
 
-	done := make(chan error, 1)
+	type result struct {
+		method *desc.MethodDescriptor
+		err    error
+	}
+	done := make(chan result, 1)
+	refl := r.refl
 	go func() {
-		svc, err := r.refl.ResolveService(serviceName)
+		svc, err := refl.ResolveService(serviceName)
 		if err != nil {
-			done <- err
+			done <- result{err: err}
 			return
 		}
 		m := svc.FindMethodByName(methodName)
 		if m == nil {
-			done <- fmt.Errorf("method %s not found on %s", methodName, serviceName)
+			done <- result{err: fmt.Errorf("method %s not found on %s", methodName, serviceName)}
 			return
 		}
-		r.method = m
-		done <- nil
+		done <- result{method: m}
 	}()
 	select {
-	case err := <-done:
-		if err != nil {
-			if isTransport(err) {
-				return fmt.Errorf("%w: %v", ErrUnreachable, err)
+	case res := <-done:
+		if res.err != nil {
+			if isTransport(res.err) {
+				return fmt.Errorf("%w: %v", ErrUnreachable, res.err)
 			}
-			return fmt.Errorf("%w: %v", ErrReflection, err)
+			return fmt.Errorf("%w: %v", ErrReflection, res.err)
 		}
+		r.method = res.method
 		return nil
 	case <-ctx.Done():
+		// The resolver goroutine finishes on its own; its result is
+		// dropped because reset() discards this reflection client.
 		return fmt.Errorf("%w: reflection timed out", ErrUnreachable)
 	}
 }
