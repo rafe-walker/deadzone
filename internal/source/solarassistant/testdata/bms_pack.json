@@ -1,0 +1,24 @@
+{
+  "_note": "SYNTHETIC. Same bench with Solar Assistant additionally reading one BMS as battery_1 (e.g. after switching from 'Use inverter values'). Metric names for battery_N are only partially documented (voltage is the documented example); the rest follow SA's HA-discovery naming and are marked unverified in the scoping doc.",
+  "messages": [
+    {"topic": "solar_assistant/total/battery_power/state", "payload": "-820"},
+    {"topic": "solar_assistant/total/battery_state_of_charge/state", "payload": "55"},
+    {"topic": "solar_assistant/total/pv_power/state", "payload": "0"},
+    {"topic": "solar_assistant/total/load_power/state", "payload": "760"},
+    {"topic": "solar_assistant/inverter_1/load_power/state", "payload": "380"},
+    {"topic": "solar_assistant/inverter_1/battery_voltage/state", "payload": "51.9"},
+    {"topic": "solar_assistant/inverter_1/battery_state_of_charge/state", "payload": "55"},
+    {"topic": "solar_assistant/inverter_1/device_mode/state", "payload": "Battery"},
+    {"topic": "solar_assistant/inverter_2/load_power/state", "payload": "380"},
+    {"topic": "solar_assistant/inverter_2/battery_voltage/state", "payload": "51.9"},
+    {"topic": "solar_assistant/inverter_2/battery_state_of_charge/state", "payload": "55"},
+    {"topic": "solar_assistant/inverter_2/device_mode/state", "payload": "Battery"},
+    {"topic": "solar_assistant/battery_1/voltage/state", "payload": "51.92"},
+    {"topic": "solar_assistant/battery_1/current/state", "payload": "-15.8"},
+    {"topic": "solar_assistant/battery_1/power/state", "payload": "-820"},
+    {"topic": "solar_assistant/battery_1/state_of_charge/state", "payload": "61"},
+    {"topic": "solar_assistant/battery_1/temperature/state", "payload": "19"},
+    {"topic": "solar_assistant/battery_1/cell_voltage_min/state", "payload": "3.241"},
+    {"topic": "solar_assistant/battery_1/cell_voltage_max/state", "payload": "3.252"}
+  ]
+}

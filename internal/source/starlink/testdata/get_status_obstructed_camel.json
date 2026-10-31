@@ -1,0 +1,15 @@
+{
+ "_note": "SYNTHETIC. Same message in lowerCamelCase, as `grpcurl -plaintext 192.168.100.1:9200 SpaceX.API.Device.Device/Handle` prints by default. Dish is SEARCHING and currently obstructed with a thermal throttle alert.",
+ "dishGetStatus": {
+  "deviceInfo": {"id": "ut01000000-00000000-00000001", "hardwareVersion": "rev4_prod1", "softwareVersion": "2026.10.01.mr58500"},
+  "deviceState": {"uptimeS": "120"},
+  "state": "SEARCHING",
+  "alerts": {"thermalThrottle": true, "isHeating": false, "dishWaterDetected": true},
+  "popPingDropRate": 0.62,
+  "downlinkThroughputBps": 120000,
+  "uplinkThroughputBps": 9000,
+  "popPingLatencyMs": 410.2,
+  "obstructionStats": {"currentlyObstructed": true, "fractionObstructed": 0.18, "avgProlongedObstructionDurationS": 12.4, "avgProlongedObstructionIntervalS": 90},
+  "isSnrAboveNoiseFloor": false
+ }
+}

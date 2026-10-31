@@ -1,0 +1,56 @@
+{
+ "_note": "SYNTHETIC. Shape follows SpaceX.API.Device.Response{dish_get_status: DishGetStatusResponse} as emitted by a reflection client with original field names (what deadzone's ReflectCaller produces and what starlink-grpc-tools documents). Values are plausible for a Gen2 standard dish on a clear day; nothing here was captured from a real dish.",
+ "dish_get_status": {
+  "device_info": {
+   "id": "ut01000000-00000000-00000000",
+   "hardware_version": "rev3_proto2",
+   "software_version": "2026.09.15.mr58000",
+   "country_code": "US",
+   "utc_offset_s": 1,
+   "bootcount": 42
+  },
+  "device_state": {"uptime_s": "86420"},
+  "state": "CONNECTED",
+  "alerts": {
+   "motors_stuck": false,
+   "thermal_throttle": false,
+   "thermal_shutdown": false,
+   "mast_not_near_vertical": false,
+   "unexpected_location": false,
+   "slow_ethernet_speeds": false,
+   "roaming": false,
+   "install_pending": false,
+   "is_heating": true,
+   "power_supply_thermal_throttle": false,
+   "is_power_save_idle": false,
+   "lower_signal_than_predicted": false
+  },
+  "seconds_to_first_nonempty_slot": 0,
+  "pop_ping_drop_rate": 0.0,
+  "downlink_throughput_bps": 24130000.5,
+  "uplink_throughput_bps": 2810000.25,
+  "pop_ping_latency_ms": 34.5,
+  "obstruction_stats": {
+   "currently_obstructed": false,
+   "fraction_obstructed": 0.004,
+   "valid_s": 86000,
+   "avg_prolonged_obstruction_duration_s": 2.5,
+   "avg_prolonged_obstruction_interval_s": 1800,
+   "avg_prolonged_obstruction_valid": true,
+   "time_obstructed": 0.004,
+   "patches_valid": 1500
+  },
+  "stow_requested": false,
+  "boresight_azimuth_deg": 1.2,
+  "boresight_elevation_deg": 64.1,
+  "eth_speed_mbps": 1000,
+  "mobility_class": "STATIONARY",
+  "is_snr_above_noise_floor": true,
+  "class_of_service": "UNKNOWN_USER_CLASS_OF_SERVICE",
+  "software_update_state": "IDLE",
+  "is_snr_persistently_low": false,
+  "has_actuators": "HAS_ACTUATORS_YES",
+  "disablement_code": "OKAY",
+  "gps_stats": {"gps_valid": true, "gps_sats": 14}
+ }
+}
