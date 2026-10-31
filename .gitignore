@@ -1,0 +1,7 @@
+/dist/
+/deadzone
+/deadzone.yaml
+*.test
+*.out
+/var/
+.DS_Store
