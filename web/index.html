@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>deadzone</title>
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #131a22; --line: #223040; --fg: #e6edf3; --dim: #8b98a8;
+    --green: #2ecc71; --amber: #f1c40f; --red: #e74c3c; --unknown: #5d6d7e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; color: var(--dim); font-size: 13px; }
+  header b { color: var(--fg); font-size: 15px; letter-spacing: .04em; }
+  #verdict { margin: 16px 0; padding: 28px 16px; border-radius: 14px; text-align: center; background: var(--unknown); color: #0b0f14; transition: background .4s; }
+  #verdict h1 { margin: 0; font-size: clamp(56px, 18vw, 120px); line-height: 1; font-weight: 900; letter-spacing: .02em; }
+  #verdict p { margin: 10px 0 0; font-size: 15px; font-weight: 600; opacity: .85; }
+  .green { background: var(--green) !important; } .amber { background: var(--amber) !important; }
+  .red { background: var(--red) !important; } .unknown { background: var(--unknown) !important; color: var(--fg) !important; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .tile .k { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .tile .v { font-size: 26px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tile .s { color: var(--dim); font-size: 12px; margin-top: 2px; }
+  section { margin-top: 18px; }
+  section h2 { font-size: 13px; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin: 0 0 8px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+  li.u { border-left: 3px solid #3498db; } li.p { border-left: 3px solid #e67e22; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--dim); }
+  .warn { color: var(--amber); font-size: 13px; margin-top: 8px; }
+  footer { margin: 28px 0 8px; color: var(--dim); font-size: 12px; text-align: center; }
+  footer a { color: var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <header><b>DEADZONE</b><span id="meta">connecting…</span></header>
+
+  <div id="verdict" class="unknown">
+    <h1 id="light">…</h1>
+    <p id="sub">waiting for the first state</p>
+  </div>
+
+  <div class="grid">
+    <div class="tile"><div class="k">Hours at current load</div><div class="v" id="hours">–</div><div class="s" id="hoursBand"></div></div>
+    <div class="tile"><div class="k">With PV forecast</div><div class="v" id="hoursPV">–</div><div class="s" id="until"></div></div>
+    <div class="tile"><div class="k">Battery</div><div class="v" id="soc">–</div><div class="s" id="socSrc"></div></div>
+    <div class="tile"><div class="k">PV / Load</div><div class="v" id="pvload">–</div><div class="s" id="net"></div></div>
+    <div class="tile"><div class="k">Starlink</div><div class="v" id="sl">–</div><div class="s" id="slSub"></div></div>
+    <div class="tile"><div class="k">Forecast</div><div class="v" id="fc">–</div><div class="s" id="fcSub"></div></div>
+  </div>
+
+  <section><h2>Why</h2><ul id="reasons"></ul><div class="warn" id="caveats"></div></section>
+  <section><h2>Shed before a call</h2><ul id="shed"></ul></section>
+
+  <footer>deadzone <span id="ver"></span> · <a href="api/state">api/state</a> · <a href="https://github.com/rafe-walker/deadzone">source</a></footer>
+</main>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const n = (v, d = 0) => (v === null || v === undefined || Number.isNaN(v)) ? '–' : Number(v).toFixed(d);
+  const words = { green: 'GO', amber: 'MAYBE', red: 'NO' };
+  const subs = { green: 'take the call', amber: 'risky — check the reasons', red: 'do not start a call' };
+
+  function render(st) {
+    const v = st.verdict || {}, p = st.power || {}, u = (st.uplink || {}).starlink || {}, f = st.forecast || {};
+    const light = v.call_ok || 'unknown';
+    const card = $('verdict');
+    card.className = light;
+    $('light').textContent = words[light] || '?';
+    $('sub').textContent = subs[light] || 'unknown';
+    $('meta').textContent = (st.ts ? new Date(st.ts).toLocaleTimeString() : '') + (p.stale ? ' · POWER DATA STALE' : '');
+    $('ver').textContent = st.version || '';
+
+    $('hours').textContent = v.hours_workstation >= 240 ? '>240 h' : n(v.hours_workstation, 1) + ' h';
+    $('hoursBand').textContent = v.hours_workstation_low !== undefined ? `band ${n(v.hours_workstation_low, 1)}–${n(v.hours_workstation_high, 1)} h · net ${n(v.net_load_w)} W` : '';
+    $('hoursPV').textContent = v.hours_workstation_with_pv >= 240 ? '>240 h' : n(v.hours_workstation_with_pv, 1) + ' h';
+    $('until').textContent = v.until ? 'reserve at ' + new Date(v.until).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'PV covers load';
+    $('soc').textContent = p.soc_pct === undefined ? '–' : n(p.soc_pct) + ' %';
+    $('socSrc').textContent = `${p.soc_source || '?'} · trust ${p.soc_trust || '?'} · ${n(p.usable_wh_now)} Wh usable`;
+    $('pvload').textContent = `${n(p.pv_w)} / ${n(p.load_w)} W`;
+    $('net').textContent = p.batt_w !== undefined ? (p.batt_w >= 0 ? 'charging ' : 'discharging ') + n(Math.abs(p.batt_w)) + ' W' : '';
+    if (!u.present) { $('sl').textContent = 'off'; $('slSub').textContent = 'not configured'; }
+    else if (!u.reachable) { $('sl').textContent = 'unknown'; $('slSub').textContent = u.error || 'no telemetry'; }
+    else {
+      $('sl').textContent = `${n(u.lat_ms_p50 ?? u.lat_ms_now)} ms`;
+      $('slSub').textContent = `${u.state || '?'} · drop ${n((u.drop_5m ?? u.drop_now ?? 0) * 100, 1)} % · p90 ${n(u.lat_ms_p90)} ms · jitter ${n(u.jitter_ms)} ms` + (u.obstructed_now ? ' · OBSTRUCTED' : '') + (u.alerts && u.alerts.length ? ' · ' + u.alerts.join(',') : '');
+    }
+    if (!f.available) { $('fc').textContent = '–'; $('fcSub').textContent = f.error || 'no forecast'; }
+    else {
+      $('fc').textContent = `${n(f.pv_wh_next_6h / 1000, 1)} kWh / 6 h`;
+      $('fcSub').textContent = `now ${n(f.pv_w_now_expected)} W · rain 2 h ${n(f.precip_mm_next_2h, 1)} mm · cloud ${n(f.cloud_cover_pct)} % · PR ${n(f.pr_learned, 2)}` + (f.from_cache ? ' · cached' : '');
+    }
+    const rs = $('reasons'); rs.innerHTML = '';
+    (v.call_reasons || []).forEach(r => {
+      const li = document.createElement('li');
+      const side = r.startsWith('uplink:') ? 'u' : 'p';
+      li.className = side; li.innerHTML = `<span>${r.slice(r.indexOf(':') + 1)}</span><code>${side === 'u' ? 'uplink' : 'power'}</code>`;
+      rs.appendChild(li);
+    });
+    $('caveats').textContent = (v.caveats || []).concat(p.caveats || []).join(' · ');
+    const sh = $('shed'); sh.innerHTML = '';
+    if (!v.shed || !v.shed.length) { const li = document.createElement('li'); li.innerHTML = `<span>nothing to shed — already past ${n(v.shed_target_h)} h target</span>`; sh.appendChild(li); }
+    (v.shed || []).forEach(s => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${s.load} <code>${n(s.w)} W</code></span><b>+${n(s.gain_h, 1)} h</b>`;
+      sh.appendChild(li);
+    });
+  }
+
+  async function tick() {
+    try {
+      const r = await fetch('api/state', { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      render(await r.json());
+    } catch (e) {
+      $('meta').textContent = 'api/state unreachable: ' + e.message;
+    }
+  }
+  tick();
+  setInterval(tick, 5000);
+})();
+</script>
+</body>
+</html>
