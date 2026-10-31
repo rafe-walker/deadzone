@@ -1,0 +1,88 @@
+# deadzone configuration — every key, with its default and the env var that
+# overrides it. Copy to deadzone.yaml (git-ignored) and edit. Keys you leave
+# out keep their defaults. Env vars win over the file.
+#
+# Numbers marked [BENCH] are the ones only you can fill in: measure them.
+
+log_level: info                    # debug|info|warn|error            DEADZONE_LOG_LEVEL
+
+mqtt:
+  host: solar-assistant.local      # Solar Assistant's broker (or your Mosquitto that SA bridges into)  DEADZONE_MQTT_HOST
+  port: 1883                       #                                   DEADZONE_MQTT_PORT
+  user: ""                         # leave empty for anonymous          DEADZONE_MQTT_USER
+  pass: ""                         #                                   DEADZONE_MQTT_PASS
+  client_id: deadzone              #                                   DEADZONE_MQTT_CLIENT_ID
+  sa_prefix: solar_assistant       # SA topic prefix: <prefix>/<device>/<metric>/state   DEADZONE_SA_PREFIX
+  topic_prefix: deadzone           # where deadzone publishes           DEADZONE_TOPIC_PREFIX
+  ha_prefix: homeassistant         # HA MQTT discovery prefix           DEADZONE_HA_PREFIX
+  ha_discovery: true               # publish homeassistant/*/deadzone/*/config   DEADZONE_HA_DISCOVERY
+  # Solar Assistant's sign for total/battery_power differs by inverter
+  # driver. true = positive means charging. [BENCH] watch the topic while
+  # the sun is up; if it goes negative while charging, set false.
+  battery_positive_is_charging: true
+
+starlink:
+  enabled: true                    #                                   DEADZONE_STARLINK_ENABLED
+  addr: 192.168.100.1:9200         # dish gRPC; in bypass mode add a route to 192.168.100.1   DEADZONE_STARLINK_ADDR
+  status_interval_s: 5             # get_status poll
+  history_interval_s: 60           # get_history poll (1 s samples, last 15 min)
+  timeout_s: 4                     # per-call deadline
+  # Used for the call power budget when the dish does not report power_w
+  # (older dishes report 0). Gen2 standard ~50-75 W, Gen3 ~75-100 W.
+  dish_watts: 60                   #                                   DEADZONE_STARLINK_DISH_WATTS
+
+forecast:
+  enabled: true                    #                                   DEADZONE_FORECAST_ENABLED
+  latitude: 0.0                    # REQUIRED when enabled             DEADZONE_LAT
+  longitude: 0.0                   # REQUIRED when enabled             DEADZONE_LON
+  tilt_deg: 30                     # panel tilt from horizontal        DEADZONE_TILT_DEG
+  azimuth_deg: 0                   # Open-Meteo convention: 0 = south, -90 = east, 90 = west   DEADZONE_AZIMUTH_DEG
+  array_kwp: 0.0                   # DC array size; 0 disables PV watts (GTI/rain still used) [BENCH]   DEADZONE_ARRAY_KWP
+  pr_default: 0.78                 # performance ratio prior; learned from total/pv_power vs GTI
+  refresh_minutes: 60              # Open-Meteo is free for non-commercial use; be polite
+  cache_path: /var/lib/deadzone/forecast.json   # last good forecast survives the uplink dying   DEADZONE_FORECAST_CACHE
+  base_url: https://api.open-meteo.com/v1/forecast
+
+battery:
+  capacity_kwh: 10.24              # nominal Wh = packs × Ah × 51.2 V; two Eco-Worthy 100 Ah = 10.24 [BENCH]   DEADZONE_BATTERY_KWH
+  reserve_soc_pct: 20              # SOC you will not go below         DEADZONE_RESERVE_SOC
+  parasitic_w: 60                  # inverter idle draw not in load_power (two 3000EHV-48 ≈ 2×30 W) [BENCH]   DEADZONE_PARASITIC_W
+
+workstation:
+  watts: 200                       # laptop + monitor + dish; applied when measured load is lower [BENCH]   DEADZONE_WORKSTATION_W
+  call_length_min: 60              # power budget horizon for the call verdict   DEADZONE_CALL_LENGTH_MIN
+  target_hours: 8                  # shed list stops once runtime reaches this   DEADZONE_TARGET_HOURS
+
+thresholds:
+  stale_after_s: 30                # no Solar Assistant message for this long -> power unknown   DEADZONE_STALE_AFTER_S
+  call_margin_pct: 25              # call budget = (workstation + dish) × call_length × (1 + margin)
+  red_soc_above_reserve_pct: 5     # SOC <= reserve + this -> red
+  uplink:                          # last-5-minute Starlink history
+    green_drop: 0.02               # mean ping drop rate
+    green_p90_ms: 150
+    green_jitter_ms: 30
+    amber_drop: 0.05
+    amber_p90_ms: 250
+    amber_jitter_ms: 50
+    outage_s: 5                    # an outage at least this long counts; 1 in 5 min = amber, 2+ = red
+    storm_precip_mm: 2             # forecast rain in the next 2 h above this caps the verdict at amber
+
+# Loads you could turn off before a call. Priority 1 is shed first; the
+# list is sorted by watts/priority. control is free text for your
+# automation (HA entity id, MQTT topic, "manual").
+shed:
+  - name: water_heater
+    watts: 1200
+    priority: 1
+    control: switch.water_heater
+  - name: well_pump
+    watts: 800
+    priority: 3
+    control: manual
+  - name: starlink_snow_melt
+    watts: 30
+    priority: 2
+    control: starlink_app
+
+http:
+  listen: ":8099"                  # status page + /api/state           DEADZONE_HTTP_LISTEN

@@ -128,7 +128,7 @@ func (c *Client) subscribe(cl mqtt.Client, topic string, h Handler) {
 
 // Subscribe registers a handler; it is applied now if connected and again
 // after every reconnect.
-func (c *Client) Subscribe(topic string, h Handler) error {
+func (c *Client) Subscribe(topic string, h func(topic string, payload []byte)) error {
 	if topic == "" || h == nil {
 		return errors.New("mqtt: empty subscription")
 	}
