@@ -68,8 +68,10 @@ func toFloat(v any) *float64 {
 		}
 		return &f
 	case string:
+		// protobuf JSON encodes non-finite floats as the strings "NaN",
+		// "Infinity" and "-Infinity"; ParseFloat accepts all three.
 		f, err := strconv.ParseFloat(x, 64)
-		if err != nil {
+		if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
 			return nil
 		}
 		return &f
