@@ -1,5 +1,5 @@
 name: deadzone
-version: "0.1.0"
+version: "0.1.1"
 slug: deadzone
 description: Can I take this video call? Fuses Solar Assistant (power), Starlink (uplink) and Open-Meteo (weather) into a GO/MAYBE/NO verdict with MQTT + HA discovery
 url: https://github.com/rafe-walker/deadzone
