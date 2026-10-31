@@ -306,10 +306,15 @@ func (s *Source) Snapshot() source.Snapshot {
 func (s *Source) CloudCoverNow() *float64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.cloudCoverAt(s.opts.Now())
+}
+
+// cloudCoverAt requires s.mu held.
+func (s *Source) cloudCoverAt(at time.Time) *float64 {
 	if s.resp == nil {
 		return nil
 	}
-	now := s.opts.Now().Unix()
+	now := at.Unix()
 	h := s.resp.Hourly
 	for i, t := range h.Time {
 		if i < len(h.CloudCover) && now >= t && now < t+3600 {
@@ -352,6 +357,7 @@ func (s *Source) Forecast() model.Forecast {
 	}
 	sort.Slice(steps, func(i, j int) bool { return steps[i].Time.Before(steps[j].Time) })
 	f.Steps = steps
+	f.CloudCoverPct = s.cloudCoverAt(now)
 	h6 := now.Add(6 * time.Hour)
 	h2 := now.Add(2 * time.Hour)
 	for _, st := range steps {

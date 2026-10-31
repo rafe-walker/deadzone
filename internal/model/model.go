@@ -164,6 +164,7 @@ type Forecast struct {
 	PVWhNext6h     float64        `json:"pv_wh_next_6h"`
 	PVWNowExpected float64        `json:"pv_w_now_expected"`
 	PrecipMMNext2h float64        `json:"precip_mm_next_2h"`
+	CloudCoverPct  *float64       `json:"cloud_cover_pct,omitempty"`
 	PRLearned      float64        `json:"pr_learned"`
 	PRSamples      int            `json:"pr_samples"`
 	Steps          []ForecastStep `json:"steps,omitempty"`
