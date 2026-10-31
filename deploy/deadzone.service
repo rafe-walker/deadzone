@@ -1,0 +1,29 @@
+# systemd unit for a Raspberry Pi / NUC install.
+#   sudo cp deadzone /usr/local/bin/ && sudo cp deploy/deadzone.service /etc/systemd/system/
+#   sudo mkdir -p /etc/deadzone /var/lib/deadzone && sudo cp config.example.yaml /etc/deadzone/deadzone.yaml
+#   sudo useradd -r -s /usr/sbin/nologin deadzone && sudo chown deadzone /var/lib/deadzone
+#   sudo systemctl enable --now deadzone
+[Unit]
+Description=deadzone - off-grid video call readiness
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deadzone
+Group=deadzone
+ExecStart=/usr/local/bin/deadzone run --config /etc/deadzone/deadzone.yaml
+Restart=always
+RestartSec=5
+# Secrets can go here instead of the YAML:
+# Environment=DEADZONE_MQTT_PASS=...
+EnvironmentFile=-/etc/deadzone/env
+StateDirectory=deadzone
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ReadWritePaths=/var/lib/deadzone
+
+[Install]
+WantedBy=multi-user.target
