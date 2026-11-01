@@ -1,0 +1,112 @@
+blueprint:
+  name: "deadzone: notify when the call verdict flips"
+  description: >-
+    Sends a notification whenever deadzone's call verdict changes between
+    GO and not-GO (binary_sensor.deadzone_call_ok), with the reasons and the
+    hours of runtime left. Pick the notify action for your phone. Optional:
+    only notify during your working hours, and skip flips that revert within
+    a short settle time (Starlink hiccups).
+  domain: automation
+  author: rafe-walker
+  source_url: https://github.com/rafe-walker/deadzone/blob/main/blueprints/automation/deadzone/call_ok_notify.yaml
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    call_ok_entity:
+      name: Call OK sensor
+      description: deadzone's binary sensor (on = GO).
+      default: binary_sensor.deadzone_call_ok
+      selector:
+        entity:
+          filter:
+            domain: binary_sensor
+    verdict_entity:
+      name: Verdict sensor
+      description: green / amber / red, used in the message text.
+      default: sensor.deadzone_verdict
+      selector:
+        entity:
+          filter:
+            domain: sensor
+    hours_entity:
+      name: Hours-at-current-load sensor
+      default: sensor.deadzone_hours_at_current_load
+      selector:
+        entity:
+          filter:
+            domain: sensor
+    notify_service:
+      name: Notify action
+      description: >-
+        The notify action to call, e.g. notify.mobile_app_pixel_8 (Settings →
+        Devices & services → Mobile App shows the name) or notify.persistent_notification.
+      default: notify.persistent_notification
+      selector:
+        text:
+    settle_seconds:
+      name: Settle time
+      description: The new state must hold this long before notifying. 0 = immediately.
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 600
+          unit_of_measurement: s
+          mode: box
+    after:
+      name: Not before
+      description: Start of the window in which you take calls (leave as is for always).
+      default: "00:00:00"
+      selector:
+        time:
+    before:
+      name: Not after
+      description: End of that window.
+      default: "23:59:59"
+      selector:
+        time:
+    notify_on_go:
+      name: Also notify when it goes back to GO
+      default: true
+      selector:
+        boolean:
+
+mode: restart
+
+triggers:
+  - trigger: state
+    entity_id: !input call_ok_entity
+    to: "off"
+    for:
+      seconds: !input settle_seconds
+    id: not_ok
+  - trigger: state
+    entity_id: !input call_ok_entity
+    to: "on"
+    for:
+      seconds: !input settle_seconds
+    id: go
+
+variables:
+  notify_service: !input notify_service
+  verdict_entity: !input verdict_entity
+  hours_entity: !input hours_entity
+  notify_on_go: !input notify_on_go
+
+conditions:
+  - condition: template
+    value_template: >-
+      {{ trigger.id == 'not_ok' or notify_on_go }}
+  - condition: time
+    after: !input after
+    before: !input before
+
+actions:
+  - action: "{{ notify_service }}"
+    data:
+      title: >-
+        {% if trigger.id == 'go' %}deadzone: GO{% else %}deadzone: {{ states(verdict_entity) | upper }}{% endif %}
+      message: >-
+        {% if trigger.id == 'go' %}Call verdict is back to GO.{% else %}Call verdict is {{ states(verdict_entity) }}.{% endif %}
+        {{ states(hours_entity) }} h at current load.
+        Reasons: {{ state_attr(verdict_entity, 'call_reasons') | join(', ') if state_attr(verdict_entity, 'call_reasons') else 'see the deadzone status page' }}
