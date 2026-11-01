@@ -29,6 +29,10 @@ $ echo $?
 
 ## 60-second install on Home Assistant Yellow (or any HAOS box)
 
+[![Open your Home Assistant instance and show the add app repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Frafe-walker%2Fdeadzone)
+
+One click adds this repository to your Home Assistant; then install **deadzone** from the store. Or by hand:
+
 1. **Settings → Apps → App store → ⋮ → Repositories** (HA 2026.2 renamed
    add-ons to apps; on older releases it is Settings → Add-ons → Add-on
    store) → add `https://github.com/rafe-walker/deadzone` → close → find
