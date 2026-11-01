@@ -1,0 +1,146 @@
+name: addon-image
+
+# Builds the Home Assistant app image for every tag and pushes
+#   ghcr.io/rafe-walker/aarch64-deadzone:<version>
+#   ghcr.io/rafe-walker/amd64-deadzone:<version>
+#   ghcr.io/rafe-walker/deadzone:<version>   (multi-arch manifest)
+# using the composable home-assistant/builder actions (the all-in-one
+# `home-assistant/builder` action is deprecated). The image tag is the tag
+# name without its leading "v", i.e. what addon/deadzone/config.yaml
+# "version" says. The add-on only uses the image once config.yaml carries
+# `image: "ghcr.io/rafe-walker/deadzone"`; see README "Maintainer:
+# publishing an image" for the one-time GHCR-public step.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag to build (vX.Y.Z); the image tag is X.Y.Z
+        required: true
+        type: string
+      publish:
+        description: Push to GHCR
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: addon/deadzone
+  IMAGE_NAME: deadzone
+  REGISTRY_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      architectures: ${{ steps.info.outputs.architectures }}
+      build_matrix: ${{ steps.matrix.outputs.matrix }}
+      ref: ${{ steps.ver.outputs.ref }}
+      version: ${{ steps.ver.outputs.version }}
+      publish: ${{ steps.ver.outputs.publish }}
+      name: ${{ steps.info.outputs.name }}
+      description: ${{ steps.info.outputs.description }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Resolve version
+        id: ver
+        env:
+          REF: ${{ inputs.ref || github.ref_name }}
+          PUBLISH: ${{ github.event_name == 'push' && 'true' || inputs.publish }}
+        run: |
+          version="${REF#v}"
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "publish=${PUBLISH}" >> "$GITHUB_OUTPUT"
+          cfg=$(grep -E '^version:' "${APP_DIR}/config.yaml" | sed -E 's/version: *"?([^"]*)"?/\1/')
+          if [[ "${cfg}" != "${version}" ]]; then
+            echo "::warning::config.yaml version is ${cfg}, building image tag ${version} from ${REF}"
+          fi
+
+      - name: Get app information
+        id: info
+        uses: home-assistant/actions/helpers/info@master
+        with:
+          path: ./${{ env.APP_DIR }}
+
+      - name: Prepare build matrix
+        id: matrix
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.09.0
+        with:
+          architectures: ${{ steps.info.outputs.architectures }}
+          image-name: ${{ env.IMAGE_NAME }}
+          registry-prefix: ${{ env.REGISTRY_PREFIX }}
+
+  build:
+    name: Build ${{ matrix.arch }} image
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.build_matrix) }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+          persist-credentials: false
+
+      - name: Build image
+        uses: home-assistant/builder/actions/build-image@2026.09.0
+        with:
+          arch: ${{ matrix.arch }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          context: ./${{ env.APP_DIR }}
+          image: ${{ matrix.image }}
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          # The Dockerfile clones the pinned tag itself (the Supervisor
+          # builds with addon/deadzone as the only context), so hand it the
+          # tag. BUILD_ARCH comes from the action; BUILD_FROM is the
+          # multi-arch HA base (the per-arch *-base images stop at 3.21).
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/base:3.22
+            DEADZONE_REF=${{ needs.prepare.outputs.ref }}
+          labels: |
+            io.hass.type=app
+            io.hass.name=${{ needs.prepare.outputs.name }}
+            io.hass.description=${{ needs.prepare.outputs.description }}
+            io.hass.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=Apache-2.0
+          push: ${{ needs.prepare.outputs.publish }}
+          version: ${{ needs.prepare.outputs.version }}
+
+  manifest:
+    name: Publish multi-arch manifest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      packages: write
+    steps:
+      - name: Publish multi-arch manifest
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.09.0
+        with:
+          architectures: ${{ needs.prepare.outputs.architectures }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: ${{ env.IMAGE_NAME }}
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          registry-prefix: ${{ env.REGISTRY_PREFIX }}

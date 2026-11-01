@@ -1,7 +1,10 @@
 name: deadzone
-version: "0.1.1"
+version: "0.2.0"
 slug: deadzone
 description: Can I take this video call? Fuses Solar Assistant (power), Starlink (uplink) and Open-Meteo (weather) into a GO/MAYBE/NO verdict with MQTT + HA discovery
+# To switch from the on-device build (build.yaml) to the prebuilt GHCR image,
+# follow README "Maintainer: publishing an image" and then uncomment:
+# image: "ghcr.io/rafe-walker/deadzone"
 url: https://github.com/rafe-walker/deadzone
 arch:
   - aarch64

@@ -1,0 +1,78 @@
+# Labels for the Configuration tab (Settings → Apps → deadzone → Configuration).
+# One entry per key in config.yaml "options"; without this file Home
+# Assistant shows the raw keys. Schema: https://contributors.home-assistant.io/apps/guides/presentation/
+configuration:
+  mqtt_host:
+    name: "MQTT host"
+    description: "Broker to read Solar Assistant from and publish deadzone/* to. Use the Solar Assistant Pi's IP (start its broker under SA → Configuration → MQTT). Leave empty to use the Mosquitto app via the Supervisor."
+  mqtt_port:
+    name: "MQTT port"
+    description: "Broker port, normally 1883."
+  mqtt_user:
+    name: "MQTT username"
+    description: "Only if your broker requires one. Ignored when the Supervisor's Mosquitto service is used."
+  mqtt_password:
+    name: "MQTT password"
+    description: "Only if your broker requires one."
+  sa_prefix:
+    name: "Solar Assistant topic prefix"
+    description: "The topic root Solar Assistant publishes under; \"solar_assistant\" unless you changed it in SA."
+  battery_positive_is_charging:
+    name: "Positive battery power means charging"
+    description: "Sign convention of total/battery_power for your inverter driver. Turn off if the status page says \"charging\" at night."
+  starlink_enabled:
+    name: "Poll the Starlink dish"
+    description: "Read get_status, get_history and get_diagnostics from the dish's local gRPC port. Off = uplink reads as \"not configured\" and the verdict caps at MAYBE."
+  starlink_addr:
+    name: "Starlink gRPC address"
+    description: "host:port of the dish, normally 192.168.100.1:9200. In bypass mode add a static route for 192.168.100.1 on your router."
+  starlink_dish_watts:
+    name: "Dish watts (fallback)"
+    description: "Used in the call budget only when the dish does not report power_in in get_history. Gen2 standard ≈ 50–75 W, Mini ≈ 25–40 W."
+  forecast_enabled:
+    name: "Fetch the Open-Meteo forecast"
+    description: "Tilted irradiance and rain for the PV-integrated runtime and the storm cap. Needs latitude/longitude."
+  latitude:
+    name: "Latitude"
+    description: "Site latitude in decimal degrees (south negative)."
+  longitude:
+    name: "Longitude"
+    description: "Site longitude in decimal degrees (west negative)."
+  tilt_deg:
+    name: "Array tilt"
+    description: "Panel tilt from horizontal, degrees."
+  azimuth_deg:
+    name: "Array azimuth"
+    description: "Panel azimuth in degrees, 0 = south, -90 = east, 90 = west."
+  array_kwp:
+    name: "Array size (kWp)"
+    description: "Installed DC capacity. 0 disables PV watts but keeps the rain/cloud signal."
+  battery_kwh:
+    name: "Battery capacity (kWh)"
+    description: "Nominal pack energy, packs × Ah × 51.2 V. Two Eco-Worthy 100 Ah racks = 10.24."
+  reserve_soc_pct:
+    name: "Reserve SOC (%)"
+    description: "State of charge you will not discharge below. Runtime is counted down to this floor."
+  parasitic_w:
+    name: "Parasitic draw (W)"
+    description: "Inverter idle consumption not included in Solar Assistant's load number."
+  workstation_watts:
+    name: "Workstation watts"
+    description: "Laptop + monitor + dish. Used when the measured load is lower, i.e. the workstation is off right now."
+  call_length_min:
+    name: "Call length (minutes)"
+    description: "Power-budget horizon for the verdict: the pack must cover workstation + dish for this long with a 25 % margin."
+  target_hours:
+    name: "Target runtime (hours)"
+    description: "The shed list keeps adding loads until the estimated runtime reaches this."
+  stale_after_s:
+    name: "Stale after (seconds)"
+    description: "No Solar Assistant message (or dish poll) for this long and that side reads unknown instead of its last value."
+  shed:
+    name: "Sheddable loads"
+    description: "Loads you could turn off before a call, each with name, watts, priority (1 = shed first) and a free-text control hint for your automation."
+  log_level:
+    name: "Log level"
+    description: "debug shows every poll and publish; info is the default."
+network:
+  8099/tcp: Status page and /api/state on the host network (optional; ingress works without it)
