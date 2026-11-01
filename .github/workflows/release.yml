@@ -34,7 +34,7 @@ jobs:
         run: |
           name=deadzone-${GITHUB_REF_NAME}-${GOOS}-${GOARCH}${GOARM:+v$GOARM}
           go build -trimpath -ldflags="-s -w -X main.version=${GITHUB_REF_NAME} -X main.commit=${GITHUB_SHA::7} -X main.date=$(date -u +%Y-%m-%d)" -o "dist/${name}/deadzone" ./cmd/deadzone
-          cp config.example.yaml README.md LICENSE NOTICE "dist/${name}/"
+          cp deadzone.example.yaml README.md LICENSE NOTICE "dist/${name}/"
           tar -C dist -czf "dist/${name}.tar.gz" "${name}"
           (cd dist && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256")
       - uses: actions/upload-artifact@v4
