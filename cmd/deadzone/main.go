@@ -35,7 +35,7 @@ import (
 
 // Set by -ldflags "-X main.version=..." at release time.
 var (
-	version = "dev"
+	version = "0.2.0"
 	commit  = ""
 	date    = ""
 )
@@ -166,10 +166,11 @@ func build(c common, advisory bool) *stack {
 	if cfg.Starlink.Enabled {
 		caller := starlink.NewReflectCaller(cfg.Starlink.Addr, time.Duration(cfg.Starlink.TimeoutS*float64(time.Second)))
 		s.sl = starlink.New(caller, starlink.Options{
-			StatusInterval:  time.Duration(cfg.Starlink.StatusIntervalS * float64(time.Second)),
-			HistoryInterval: time.Duration(cfg.Starlink.HistoryIntervalS * float64(time.Second)),
-			StaleAfter:      cfg.StaleAfter(),
-			Logger:          c.log.With("component", "starlink"),
+			StatusInterval:      time.Duration(cfg.Starlink.StatusIntervalS * float64(time.Second)),
+			HistoryInterval:     time.Duration(cfg.Starlink.HistoryIntervalS * float64(time.Second)),
+			DiagnosticsInterval: time.Duration(cfg.Starlink.HistoryIntervalS * float64(time.Second)),
+			StaleAfter:          cfg.StaleAfter(),
+			Logger:              c.log.With("component", "starlink"),
 		})
 		uplink = s.sl
 		s.sources = append(s.sources, s.sl)
@@ -239,9 +240,13 @@ func runCmd(args []string) error {
 		}
 	}
 
+	deps := api.Deps{State: s.app.State, Version: version}
+	if s.sl != nil {
+		deps.History = s.sl.History15m
+	}
 	httpErr := make(chan error, 1)
 	go func() {
-		httpErr <- api.Serve(ctx, c.cfg.HTTP.Listen, api.Handler(s.app.State, version), s.log.With("component", "http"))
+		httpErr <- api.Serve(ctx, c.cfg.HTTP.Listen, api.NewHandler(deps), s.log.With("component", "http"))
 	}()
 
 	t := time.NewTicker(*every)
@@ -308,6 +313,7 @@ func checkCmd(args []string) (int, error) {
 	if s.sl != nil {
 		s.sl.PollStatus(ctx)
 		s.sl.PollHistory(ctx)
+		s.sl.PollDiagnostics(ctx)
 	}
 	if s.om != nil {
 		if err := s.om.LoadCache(); err != nil && !errors.Is(err, os.ErrNotExist) {
