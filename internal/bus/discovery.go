@@ -11,6 +11,7 @@ type Entity struct {
 	Key        string // object_id suffix, e.g. "verdict"
 	Name       string
 	Template   string // value_template over deadzone/state JSON
+	Attributes string // optional json_attributes_template over the same JSON
 	Unit       string
 	Icon       string
 	Class      string // device_class
@@ -18,9 +19,10 @@ type Entity struct {
 	Diagnostic bool
 }
 
-// Entities is the fixed v0.1 entity list, in publication order.
+// Entities is the fixed entity list, in publication order.
 var Entities = []Entity{
-	{Component: "sensor", Key: "verdict", Name: "Verdict", Template: "{{ value_json.verdict.call_ok }}", Icon: "mdi:traffic-light"},
+	{Component: "sensor", Key: "verdict", Name: "Verdict", Template: "{{ value_json.verdict.call_ok }}", Icon: "mdi:traffic-light",
+		Attributes: "{{ {'call_reasons': value_json.verdict.call_reasons, 'uplink_light': value_json.verdict.uplink_light, 'power_light': value_json.verdict.power_light, 'until': value_json.verdict.until, 'shed': value_json.verdict.shed} | tojson }}"},
 	{Component: "binary_sensor", Key: "call_ok", Name: "Call OK", Template: "{{ value_json.verdict.call_ok == 'green' }}", Icon: "mdi:video", Class: "connectivity"},
 	{Component: "sensor", Key: "hours_at_current_load", Name: "Hours at current load", Template: "{{ value_json.verdict.hours_workstation }}", Unit: "h", Icon: "mdi:timer-sand", StateCls: "measurement"},
 	{Component: "sensor", Key: "hours_with_pv", Name: "Hours with PV forecast", Template: "{{ value_json.verdict.hours_workstation_with_pv }}", Unit: "h", Icon: "mdi:weather-sunny", StateCls: "measurement"},
@@ -30,6 +32,8 @@ var Entities = []Entity{
 	{Component: "sensor", Key: "starlink_pop_ping_ms", Name: "Starlink POP ping", Template: "{{ value_json.uplink.starlink.lat_ms_now }}", Unit: "ms", Class: "duration", StateCls: "measurement", Icon: "mdi:satellite-variant"},
 	{Component: "sensor", Key: "starlink_downlink_mbps", Name: "Starlink downlink", Template: "{{ (value_json.uplink.starlink.downlink_bps / 1000000) | round(1) }}", Unit: "Mbit/s", Class: "data_rate", StateCls: "measurement"},
 	{Component: "binary_sensor", Key: "starlink_obstructed", Name: "Starlink obstructed", Template: "{{ value_json.uplink.starlink.obstructed_now }}", Class: "problem"},
+	{Component: "sensor", Key: "starlink_power_w", Name: "Starlink dish power", Template: "{{ value_json.uplink.starlink.power_mean_5m_w | default(value_json.uplink.starlink.power_w) }}", Unit: "W", Class: "power", StateCls: "measurement"},
+	{Component: "sensor", Key: "starlink_disablement_code", Name: "Starlink disablement code", Template: "{{ value_json.uplink.starlink.disablement_code | default('unknown') }}", Icon: "mdi:account-cancel", Diagnostic: true},
 	{Component: "sensor", Key: "forecast_cloud_pct", Name: "Forecast cloud cover", Template: "{{ value_json.forecast.cloud_cover_pct }}", Unit: "%", Icon: "mdi:weather-cloudy", StateCls: "measurement"},
 	{Component: "sensor", Key: "uplink_score", Name: "Uplink score", Template: "{{ value_json.verdict.uplink_score }}", Icon: "mdi:signal", StateCls: "measurement", Diagnostic: true},
 	{Component: "sensor", Key: "starlink_drop_5m", Name: "Starlink drop rate 5m", Template: "{{ (value_json.uplink.starlink.drop_5m * 100) | round(2) }}", Unit: "%", Icon: "mdi:signal-off", StateCls: "measurement", Diagnostic: true},
@@ -71,6 +75,10 @@ func DiscoveryMessages(haPrefix, prefix, version string) ([]Message, error) {
 		if e.Component == "binary_sensor" {
 			cfg["payload_on"] = "True"
 			cfg["payload_off"] = "False"
+		}
+		if e.Attributes != "" {
+			cfg["json_attributes_topic"] = t.State()
+			cfg["json_attributes_template"] = e.Attributes
 		}
 		if e.Unit != "" {
 			cfg["unit_of_measurement"] = e.Unit

@@ -275,6 +275,47 @@ func UplinkGate(s model.Starlink, f model.Forecast, th config.UplinkThresholds, 
 		g.Score -= 50
 		g.reason("currently_obstructed")
 	}
+	// Account/policy reds. A disabled dish keeps answering pings and keeps
+	// reporting CONNECTED, so the ping numbers alone would say GO.
+	if disabled(s.DisablementCode) {
+		g.Light = model.Red
+		g.Score = 0
+		g.reason("disablement_code=%s", s.DisablementCode)
+	}
+	if s.Stowed != nil && *s.Stowed {
+		g.Light = model.Red
+		g.Score = 0
+		g.reason("stowed")
+	}
+	if s.OverageRateLimited != nil && *s.OverageRateLimited {
+		g.Light = model.Red
+		g.Score = 0
+		g.reason("overage_rate_limited")
+	}
+	for _, rl := range []struct{ dir, why string }{{"dl", s.RateLimitDL}, {"ul", s.RateLimitUL}} {
+		switch rl.why {
+		case "", "UNKNOWN", "NO_LIMIT":
+		case "OVERAGE_LIMIT":
+			g.Light = model.Red
+			g.Score = 0
+			g.reason("%s_rate_limit=%s", rl.dir, rl.why)
+		default:
+			// POLICY_LIMIT, USER_CUSTOM_LIMIT, LOW_SPEED_POLICY_LIMIT: the
+			// link is capped but usually still call-capable.
+			g.reason("%s_rate_limit=%s", rl.dir, rl.why)
+			if g.Light == model.Green {
+				g.Light = model.Amber
+			}
+			g.Score -= 15
+		}
+	}
+	if s.HardwareSelfTest == "FAILED" {
+		g.reason("hardware_self_test=FAILED")
+		if g.Light == model.Green {
+			g.Light = model.Amber
+		}
+		g.Score -= 10
+	}
 
 	// Numbers: prefer the 5-minute history, fall back to the instantaneous
 	// status values.
@@ -385,6 +426,17 @@ func UplinkGate(s model.Starlink, f model.Forecast, th config.UplinkThresholds, 
 	return g
 }
 
+// disabled reports whether a UtDisablementCode enum name means the dish is
+// not allowed to pass traffic. Empty, UNKNOWN and UNKNOWN_STATE (the dish
+// still loading state, or firmware without the field) are not reds.
+func disabled(code string) bool {
+	switch code {
+	case "", "OKAY", "UNKNOWN", "UNKNOWN_STATE":
+		return false
+	}
+	return true
+}
+
 func fmtNum(v float64, unit string) string {
 	if v == math.Trunc(v) {
 		return fmt.Sprintf("%.0f%s", v, unit)
@@ -416,10 +468,7 @@ func PowerGate(in Inputs, h Hours, prm Params) Gate {
 		g.reason("soc=%.0f%%<=reserve+%.0f", soc, prm.RedSOCAboveRes)
 		return g
 	}
-	dish := prm.DishW
-	if in.Starlink.PowerW != nil && *in.Starlink.PowerW > 0 {
-		dish = *in.Starlink.PowerW
-	}
+	dish, dishSrc := DishWatts(in.Starlink, prm.DishW)
 	callH := prm.CallLengthMin / 60
 	need := (h.WorkW + dish) * callH * (1 + prm.CallMarginPct/100)
 	if h.UsableWh >= need {
@@ -430,10 +479,25 @@ func PowerGate(in Inputs, h Hours, prm Params) Gate {
 		}
 		g.reason("usable=%.0fWh<call_budget=%.0fWh", h.UsableWh, need)
 	}
+	g.reason("dish_w=%.0f(%s)", dish, dishSrc)
 	if p.SOCTrust == model.TrustLow {
 		g.reason("soc_trust=low")
 	}
 	return g
+}
+
+// DishWatts picks the dish draw for the call budget: the 5-minute mean
+// from get_history.power_in when the dish reports it, else the newest
+// sample, else the configured starlink_dish_watts. The second value names
+// the source ("dish_mean_5m", "dish_now", "config").
+func DishWatts(s model.Starlink, configured float64) (float64, string) {
+	if s.PowerMeanW != nil && *s.PowerMeanW > 0 {
+		return *s.PowerMeanW, "dish_mean_5m"
+	}
+	if s.PowerW != nil && *s.PowerW > 0 {
+		return *s.PowerW, "dish_now"
+	}
+	return configured, "config"
 }
 
 // ShedList answers Q3: loads to turn off, most effective first, until the

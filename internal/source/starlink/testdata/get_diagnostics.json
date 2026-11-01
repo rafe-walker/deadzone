@@ -1,0 +1,28 @@
+{
+ "_note": "SYNTHETIC. Shape follows SpaceX.API.Device.Response{dish_get_diagnostics: DishGetDiagnosticsResponse} with original field names (the enterprise-api device.proto: disablement_code=6, location=8, stowed=10, overage_rate_limited=14). Healthy dish, location sharing off (the default on residential plans). Nothing here was captured from a real dish.",
+ "dish_get_diagnostics": {
+  "id": "ut01000000-00000000-00000000",
+  "hardware_version": "rev3_proto2",
+  "software_version": "2026.09.15.mr58000",
+  "utc_offset_s": -25200,
+  "hardware_self_test": "PASSED",
+  "hardware_self_test_codes": [],
+  "alerts": {
+   "dish_is_heating": false,
+   "dish_thermal_throttle": false,
+   "dish_thermal_shutdown": false,
+   "power_supply_thermal_throttle": false,
+   "motors_stuck": false,
+   "mast_not_near_vertical": false,
+   "slow_ethernet_speeds": false,
+   "software_install_pending": false,
+   "moving_too_fast_for_policy": false,
+   "obstructed": false
+  },
+  "disablement_code": "OKAY",
+  "location": {"enabled": false, "latitude": 0, "longitude": 0, "altitude_meters": 0, "uncertainty_meters_valid": false, "uncertainty_meters": 0, "gps_time_s": 0},
+  "alignment_stats": {"boresight_azimuth_deg": 1.2, "boresight_elevation_deg": 64.1, "desired_boresight_azimuth_deg": 0, "desired_boresight_elevation_deg": 65},
+  "stowed": false,
+  "overage_rate_limited": false
+ }
+}

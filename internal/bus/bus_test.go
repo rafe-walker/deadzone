@@ -198,3 +198,54 @@ func TestCloseNeverConnected(t *testing.T) {
 	c := New(config.Default().MQTT, "test", nil)
 	c.Close()
 }
+
+func TestDiscoveryStarlinkPowerAndDisablement(t *testing.T) {
+	msgs, err := DiscoveryMessages("homeassistant", "deadzone", "0.2.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byTopic := map[string]map[string]any{}
+	for _, m := range msgs {
+		var cfg map[string]any
+		if err := json.Unmarshal(m.Payload, &cfg); err != nil {
+			t.Fatal(err)
+		}
+		byTopic[m.Topic] = cfg
+	}
+	pw := byTopic["homeassistant/sensor/deadzone/starlink_power_w/config"]
+	if pw == nil {
+		t.Fatal("starlink_power_w entity missing")
+	}
+	if pw["device_class"] != "power" || pw["unit_of_measurement"] != "W" || pw["state_class"] != "measurement" {
+		t.Errorf("starlink_power_w config: %v", pw)
+	}
+	if tpl, _ := pw["value_template"].(string); !strings.Contains(tpl, "power_mean_5m_w") {
+		t.Errorf("power template should prefer the 5-min mean: %q", tpl)
+	}
+	dc := byTopic["homeassistant/sensor/deadzone/starlink_disablement_code/config"]
+	if dc == nil || dc["entity_category"] != "diagnostic" {
+		t.Fatalf("starlink_disablement_code should be a diagnostic entity: %v", dc)
+	}
+}
+
+func TestDiscoveryVerdictAttributes(t *testing.T) {
+	msgs, err := DiscoveryMessages("homeassistant", "deadzone", "0.2.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range msgs {
+		var cfg map[string]any
+		_ = json.Unmarshal(m.Payload, &cfg)
+		if m.Topic == "homeassistant/sensor/deadzone/verdict/config" {
+			if cfg["json_attributes_topic"] != "deadzone/state" {
+				t.Fatalf("verdict needs attributes from the state topic: %v", cfg)
+			}
+			tpl, _ := cfg["json_attributes_template"].(string)
+			if !strings.Contains(tpl, "call_reasons") || !strings.Contains(tpl, "tojson") {
+				t.Fatalf("attributes template: %q", tpl)
+			}
+			return
+		}
+	}
+	t.Fatal("verdict entity missing")
+}

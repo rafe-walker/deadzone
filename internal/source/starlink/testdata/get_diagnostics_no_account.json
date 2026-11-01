@@ -1,0 +1,14 @@
+{
+ "_note": "SYNTHETIC. Same shape as get_diagnostics.json; a dish whose subscription lapsed. The dish still reports CONNECTED in get_status with pings answered, which is why the verdict must read the disablement code.",
+ "dish_get_diagnostics": {
+  "id": "ut01000000-00000000-00000000",
+  "hardware_version": "rev3_proto2",
+  "software_version": "2026.09.15.mr58000",
+  "hardware_self_test": "PASSED",
+  "alerts": {"dish_is_heating": false, "dish_thermal_shutdown": false, "obstructed": false},
+  "disablement_code": "NO_ACTIVE_ACCOUNT",
+  "location": {"enabled": true, "latitude": 31.9, "longitude": -109.8, "altitude_meters": 1300, "uncertainty_meters_valid": true, "uncertainty_meters": 4.2, "gps_time_s": 1477000000},
+  "stowed": false,
+  "overage_rate_limited": false
+ }
+}

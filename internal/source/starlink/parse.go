@@ -200,6 +200,14 @@ func ApplyStatus(s *model.Starlink, raw []byte, now time.Time) error {
 	s.DownlinkBps = st.num("downlink_throughput_bps")
 	s.UplinkBps = st.num("uplink_throughput_bps")
 	s.SNRAboveNoiseFloor = st.boolean("is_snr_above_noise_floor")
+	// Current firmware carries the disablement code and rate-limit reasons
+	// in get_status (fields 1024, 1044, 1045); older firmware omits them
+	// and get_diagnostics fills disablement_code instead.
+	if dc := st.str("disablement_code"); dc != "" {
+		s.DisablementCode = dc
+	}
+	s.RateLimitDL = st.str("dl_bandwidth_restricted_reason")
+	s.RateLimitUL = st.str("ul_bandwidth_restricted_reason")
 	if os := st.obj("obstruction_stats"); os != nil {
 		s.ObstructedNow = os.boolean("currently_obstructed")
 		s.FractionObstructed = os.num("fraction_obstructed")
@@ -251,23 +259,72 @@ func keys(n node) string {
 	return strings.Join(ks, ",")
 }
 
-// HistoryWindow is how many 1 s samples the call gate looks at (5 min).
-const HistoryWindow = 300
-
-// ApplyHistory fills the history-derived fields (drop_5m, latency
-// percentiles, jitter, outages, power) from a get_history response.
-func ApplyHistory(s *model.Starlink, raw []byte, now time.Time) error {
+// ApplyDiagnostics fills the diagnostics-derived fields from a
+// get_diagnostics response (dish_get_diagnostics). The message is small and
+// changes rarely, so the source polls it once a minute. Unlike
+// get_status it is not available on every firmware; the caller decides
+// what to do when the dish rejects the request.
+func ApplyDiagnostics(s *model.Starlink, raw []byte, now time.Time) error {
 	root, err := decode(raw)
 	if err != nil {
 		return err
 	}
+	d := root.obj("dish_get_diagnostics")
+	if d == nil {
+		return fmt.Errorf("starlink: response has no dish_get_diagnostics (keys: %s)", keys(root))
+	}
+	s.DiagnosticsUpdated = now
+	s.DiagnosticsError = ""
+	if dc := d.str("disablement_code"); dc != "" {
+		s.DisablementCode = dc
+	}
+	s.Stowed = d.boolean("stowed")
+	s.OverageRateLimited = d.boolean("overage_rate_limited")
+	s.HardwareSelfTest = d.str("hardware_self_test")
+	if loc := d.obj("location"); loc != nil {
+		s.LocationEnabled = loc.boolean("enabled")
+	} else {
+		s.LocationEnabled = nil
+	}
+	if s.HardwareVersion == "" {
+		s.HardwareVersion = d.str("hardware_version")
+	}
+	if s.SoftwareVersion == "" {
+		s.SoftwareVersion = d.str("software_version")
+	}
+	return nil
+}
+
+// HistoryWindow is how many 1 s samples the call gate looks at (5 min).
+const HistoryWindow = 300
+
+// HistoryLen is the dish's full ring (15 min at 1 Hz) and the span of the
+// status-page sparkline.
+const HistoryLen = 900
+
+// HistoryBuckets is how many points the sparkline gets (5 s each).
+const HistoryBuckets = 180
+
+// ApplyHistory fills the history-derived fields (drop_5m, latency
+// percentiles, jitter, outages, power) from a get_history response.
+func ApplyHistory(s *model.Starlink, raw []byte, now time.Time) error {
+	_, err := applyHistory(s, raw, now)
+	return err
+}
+
+func applyHistory(s *model.Starlink, raw []byte, now time.Time) (model.History, error) {
+	root, err := decode(raw)
+	if err != nil {
+		return model.History{}, err
+	}
 	h := root.obj("dish_get_history")
 	if h == nil {
-		return fmt.Errorf("starlink: response has no dish_get_history (keys: %s)", keys(root))
+		return model.History{}, fmt.Errorf("starlink: response has no dish_get_history (keys: %s)", keys(root))
 	}
 	s.Present = true
 	s.Reachable = true
 	s.Updated = now
+	s.HistoryUpdated = now
 
 	current := int64(0)
 	if c := h.num("current"); c != nil {
@@ -276,9 +333,11 @@ func ApplyHistory(s *model.Starlink, raw []byte, now time.Time) error {
 	drops := ordered(h.floats("pop_ping_drop_rate"), current)
 	lats := ordered(h.floats("pop_ping_latency_ms"), current)
 	power := ordered(h.floats("power_in"), current)
+	hist := Downsample(tail(drops, HistoryLen), tail(lats, HistoryLen), now, HistoryBuckets)
 
 	drops = tail(drops, HistoryWindow)
 	lats = tail(lats, HistoryWindow)
+	power = tail(power, HistoryWindow)
 	s.HistorySamples = len(drops)
 
 	if len(drops) > 0 {
@@ -324,9 +383,30 @@ func ApplyHistory(s *model.Starlink, raw []byte, now time.Time) error {
 	if jitterN > 0 {
 		s.JitterMs = model.F(jitterSum / float64(jitterN))
 	}
+	// Power: the dish only reports it here (power_in, W per 1-s sample);
+	// get_status has no power field. Newest sample for display, the window
+	// mean for the call budget (a dish heater or snow-melt cycle shows up
+	// in the mean long before it shows in one sample).
+	s.PowerW, s.PowerMeanW, s.PowerMinW, s.PowerMaxW = nil, nil, nil, nil
 	if len(power) > 0 {
 		if p := power[len(power)-1]; !math.IsNaN(p) && p > 0 {
 			s.PowerW = model.F(p)
+		}
+		sum, n := 0.0, 0
+		lo, hi := math.Inf(1), math.Inf(-1)
+		for _, p := range power {
+			if math.IsNaN(p) || p <= 0 {
+				continue
+			}
+			sum += p
+			n++
+			lo = math.Min(lo, p)
+			hi = math.Max(hi, p)
+		}
+		if n > 0 {
+			s.PowerMeanW = model.F(math.Round(sum/float64(n)*10) / 10)
+			s.PowerMinW = model.F(lo)
+			s.PowerMaxW = model.F(hi)
 		}
 	}
 
@@ -351,7 +431,58 @@ func ApplyHistory(s *model.Starlink, raw []byte, now time.Time) error {
 		}
 		s.Outages15m = append(s.Outages15m, out)
 	}
-	return nil
+	return hist, nil
+}
+
+// Downsample buckets 1-s drop/latency samples (oldest first, newest last)
+// into at most buckets points for the sparkline. Per bucket: mean drop
+// rate and nearest-rank p90 of the valid latencies (samples during a full
+// drop are 0 and skipped). The last bucket ends at `at`.
+func Downsample(drops, lats []float64, at time.Time, buckets int) model.History {
+	n := len(drops)
+	if len(lats) > n {
+		n = len(lats)
+	}
+	h := model.History{At: at, StepS: 1, Drop: []*float64{}, LatMs: []*float64{}}
+	if n == 0 || buckets <= 0 {
+		return h
+	}
+	per := 1
+	if n > buckets {
+		per = int(math.Ceil(float64(n) / float64(buckets)))
+	}
+	h.StepS = float64(per)
+	// Align so the newest bucket is full: walk from the end.
+	for end := n; end > 0; end -= per {
+		start := end - per
+		if start < 0 {
+			start = 0
+		}
+		sum, cnt := 0.0, 0
+		var valid []float64
+		for i := start; i < end; i++ {
+			dropped := false
+			if i < len(drops) && !math.IsNaN(drops[i]) {
+				sum += drops[i]
+				cnt++
+				dropped = drops[i] >= 1
+			}
+			if i < len(lats) && !math.IsNaN(lats[i]) && lats[i] > 0 && !dropped {
+				valid = append(valid, lats[i])
+			}
+		}
+		var d, l *float64
+		if cnt > 0 {
+			d = model.F(math.Round(sum/float64(cnt)*1000) / 1000)
+		}
+		if len(valid) > 0 {
+			sort.Float64s(valid)
+			l = model.F(math.Round(percentile(valid, 0.90)*10) / 10)
+		}
+		h.Drop = append([]*float64{d}, h.Drop...)
+		h.LatMs = append([]*float64{l}, h.LatMs...)
+	}
+	return h
 }
 
 // ordered unrolls the dish's ring buffer so index 0 is the oldest sample

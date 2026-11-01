@@ -98,31 +98,65 @@ type Outage struct {
 
 // Starlink is the subset of dish telemetry the engine cares about.
 type Starlink struct {
-	Present            bool      `json:"present"`
-	Reachable          bool      `json:"reachable"`
-	State              string    `json:"state,omitempty"`
-	HardwareVersion    string    `json:"hardware_version,omitempty"`
-	SoftwareVersion    string    `json:"software_version,omitempty"`
-	UptimeS            *float64  `json:"uptime_s,omitempty"`
-	DropNow            *float64  `json:"drop_now,omitempty"`
-	LatencyNowMs       *float64  `json:"lat_ms_now,omitempty"`
-	Drop5m             *float64  `json:"drop_5m,omitempty"`
-	LatP50Ms           *float64  `json:"lat_ms_p50,omitempty"`
-	LatP90Ms           *float64  `json:"lat_ms_p90,omitempty"`
-	JitterMs           *float64  `json:"jitter_ms,omitempty"`
-	DownlinkBps        *float64  `json:"downlink_bps,omitempty"`
-	UplinkBps          *float64  `json:"uplink_bps,omitempty"`
-	ObstructedNow      *bool     `json:"obstructed_now,omitempty"`
-	FractionObstructed *float64  `json:"fraction_obstructed,omitempty"`
-	ObstructionDurS    *float64  `json:"obstruction_dur_s,omitempty"`
-	ObstructionIntvlS  *float64  `json:"obstruction_interval_s,omitempty"`
-	Alerts             []string  `json:"alerts"`
-	Outages15m         []Outage  `json:"outages_15m"`
-	PowerW             *float64  `json:"power_w,omitempty"`
-	SNRAboveNoiseFloor *bool     `json:"snr_above_noise_floor,omitempty"`
+	Present            bool     `json:"present"`
+	Reachable          bool     `json:"reachable"`
+	State              string   `json:"state,omitempty"`
+	HardwareVersion    string   `json:"hardware_version,omitempty"`
+	SoftwareVersion    string   `json:"software_version,omitempty"`
+	UptimeS            *float64 `json:"uptime_s,omitempty"`
+	DropNow            *float64 `json:"drop_now,omitempty"`
+	LatencyNowMs       *float64 `json:"lat_ms_now,omitempty"`
+	Drop5m             *float64 `json:"drop_5m,omitempty"`
+	LatP50Ms           *float64 `json:"lat_ms_p50,omitempty"`
+	LatP90Ms           *float64 `json:"lat_ms_p90,omitempty"`
+	JitterMs           *float64 `json:"jitter_ms,omitempty"`
+	DownlinkBps        *float64 `json:"downlink_bps,omitempty"`
+	UplinkBps          *float64 `json:"uplink_bps,omitempty"`
+	ObstructedNow      *bool    `json:"obstructed_now,omitempty"`
+	FractionObstructed *float64 `json:"fraction_obstructed,omitempty"`
+	ObstructionDurS    *float64 `json:"obstruction_dur_s,omitempty"`
+	ObstructionIntvlS  *float64 `json:"obstruction_interval_s,omitempty"`
+	Alerts             []string `json:"alerts"`
+	Outages15m         []Outage `json:"outages_15m"`
+	// PowerW is the newest 1-s sample of get_history.power_in (the dish
+	// reports no power in get_status). PowerMeanW averages the gate window.
+	PowerW             *float64 `json:"power_w,omitempty"`
+	PowerMeanW         *float64 `json:"power_mean_5m_w,omitempty"`
+	PowerMinW          *float64 `json:"power_min_5m_w,omitempty"`
+	PowerMaxW          *float64 `json:"power_max_5m_w,omitempty"`
+	SNRAboveNoiseFloor *bool    `json:"snr_above_noise_floor,omitempty"`
+	// DisablementCode is the UtDisablementCode enum name (OKAY,
+	// NO_ACTIVE_ACCOUNT, DATA_OVERAGE_SANDBOX_POLICY, ...). get_status
+	// carries it on current firmware; get_diagnostics always has.
+	DisablementCode string `json:"disablement_code,omitempty"`
+	// RateLimitDL/UL are RateLimitReason enum names from get_status
+	// (NO_LIMIT, POLICY_LIMIT, USER_CUSTOM_LIMIT, OVERAGE_LIMIT,
+	// LOW_SPEED_POLICY_LIMIT).
+	RateLimitDL string `json:"rate_limit_dl,omitempty"`
+	RateLimitUL string `json:"rate_limit_ul,omitempty"`
+	// Diagnostics-only fields (get_diagnostics, polled once a minute).
+	Stowed             *bool     `json:"stowed,omitempty"`
+	OverageRateLimited *bool     `json:"overage_rate_limited,omitempty"`
+	HardwareSelfTest   string    `json:"hardware_self_test,omitempty"`
+	LocationEnabled    *bool     `json:"location_enabled,omitempty"`
+	DiagnosticsUpdated time.Time `json:"diagnostics_updated"`
+	DiagnosticsError   string    `json:"diagnostics_error,omitempty"`
 	HistorySamples     int       `json:"history_samples"`
+	HistoryUpdated     time.Time `json:"history_updated"`
 	Updated            time.Time `json:"updated"`
 	Error              string    `json:"error,omitempty"`
+}
+
+// History is the compact 15-minute dish history served to the status page
+// as history_15m (HTTP only; it is not part of the retained MQTT state).
+// Each bucket covers StepS seconds; nil entries are buckets without a
+// valid sample.
+type History struct {
+	// At is when the dish was polled; the last bucket ends there.
+	At    time.Time  `json:"at"`
+	StepS float64    `json:"step_s"`
+	Drop  []*float64 `json:"drop"`
+	LatMs []*float64 `json:"lat_ms_p90"`
 }
 
 // Probe is the router-agnostic active probe summary over the trailing window.

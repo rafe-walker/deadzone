@@ -1,0 +1,15 @@
+{
+ "_note": "SYNTHETIC. lowerCamelCase field names as grpcurl emits by default; dish stowed and rate-limited after a data overage. Covers the camelCase lookup path for diagnostics.",
+ "dishGetDiagnostics": {
+  "id": "ut01000000-00000000-00000000",
+  "hardwareVersion": "rev4_prod3",
+  "softwareVersion": "2026.10.02.mr58210",
+  "hardwareSelfTest": "FAILED",
+  "hardwareSelfTestCodes": ["TEMPERATURE"],
+  "alerts": {"dishIsHeating": true, "dishThermalShutdown": false, "obstructed": false},
+  "disablementCode": "DATA_OVERAGE_SANDBOX_POLICY",
+  "location": {"enabled": false},
+  "stowed": true,
+  "overageRateLimited": true
+ }
+}

@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -26,15 +27,19 @@ func fixture(t *testing.T, name string) []byte {
 
 // fakeCaller answers from fixtures keyed by the request's top-level key.
 type fakeCaller struct {
+	mu    sync.Mutex
 	files map[string]string
 	err   error
 	calls int
 }
 
 func (f *fakeCaller) Call(_ context.Context, req map[string]any) ([]byte, error) {
+	f.mu.Lock()
 	f.calls++
-	if f.err != nil {
-		return nil, f.err
+	err := f.err
+	f.mu.Unlock()
+	if err != nil {
+		return nil, err
 	}
 	for k := range req {
 		if name, ok := f.files[k]; ok {
@@ -255,7 +260,9 @@ func TestUnreachableClearsReachableKeepsLastGood(t *testing.T) {
 	if !src.Starlink().Reachable {
 		t.Fatal("first poll should succeed")
 	}
+	fc.mu.Lock()
 	fc.err = fmt.Errorf("%w: connection refused", ErrUnreachable)
+	fc.mu.Unlock()
 	clock = clock.Add(5 * time.Second)
 	src.PollStatus(context.Background())
 	st := src.Starlink()

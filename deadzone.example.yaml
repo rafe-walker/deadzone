@@ -25,10 +25,11 @@ starlink:
   enabled: true                    #                                   DEADZONE_STARLINK_ENABLED
   addr: 192.168.100.1:9200         # dish gRPC; in bypass mode add a route to 192.168.100.1   DEADZONE_STARLINK_ADDR
   status_interval_s: 5             # get_status poll
-  history_interval_s: 60           # get_history poll (1 s samples, last 15 min)
+  history_interval_s: 60           # get_history + get_diagnostics poll (1 s samples, last 15 min)
   timeout_s: 4                     # per-call deadline
-  # Used for the call power budget when the dish does not report power_w
-  # (older dishes report 0). Gen2 standard ~50-75 W, Gen3 ~75-100 W.
+  # Fallback for the call power budget only. The dish reports its draw in
+  # get_history.power_in (not in get_status); the 5-minute mean of that is
+  # used whenever present. Gen2 standard ~50-75 W, Gen3 ~75-100 W, Mini ~25-40 W.
   dish_watts: 60                   #                                   DEADZONE_STARLINK_DISH_WATTS
 
 forecast:
