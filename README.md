@@ -289,5 +289,4 @@ trademark of its owners; deadzone is affiliated with neither.
 
 ---
 
-Built off-grid in Cochise County, AZ by a laid-off support engineer —
-https://theexiledentrepreneur.com
+Built and maintained by [IsoKron](https://isokron.ai).
